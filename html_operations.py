@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 
-def get_listing_urls(f_mains):
+def get_listing_urls(f_mains) -> list:
     """
     Extracts all unique listing URLs from the HTML files in the specified directory.
     """
@@ -34,7 +34,7 @@ def get_listing_urls(f_mains):
             
     return list(urls)
 
-def extract_detail(f_listings, process_today_only):
+def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
     # Skip directories or hidden files
 
     files = glob.glob(os.path.join(f_listings, '*'))
@@ -99,8 +99,13 @@ def extract_detail(f_listings, process_today_only):
                 lat = gps.get('lat') if gps else None
                 lng = gps.get('lng') if gps else None
 
+                if lat is not None:
+                    lat = round(lat, 5)
+                if lng is not None:
+                    lng = round(lng, 5)
+
                 res = {
-                    'ID': listing_id,
+                    'listing_id': listing_id,
                     'URL': url,
                     'Address': address,
                     'Disposition': disposition,
@@ -129,14 +134,18 @@ def extract_detail(f_listings, process_today_only):
             continue
         
     if data:
+
         df = pd.DataFrame(data)
         print(f"Successfully extracted {len(df)} detailed records.")
 
-        output_file = 'listings_details.csv'
-        df.to_csv(output_file, index=False)
-        print(f"Data saved to {output_file}")
+        #        output_file = 'listings_details.csv'
+        #        df.to_csv(output_file, index=False)
+        #        print(f"Data saved to {output_file}")
         
         # Show a snippet
-        print(df[['ID', 'Disposition', 'Rent (CZK)', 'Description']].head())
+        print(df[['listing_id', 'Disposition', 'Rent (CZK)', 'Description']].head())
+
+        return df
+
     else:
         print("No data extracted.")
