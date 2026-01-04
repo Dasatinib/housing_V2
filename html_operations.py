@@ -71,7 +71,6 @@ def extract_detail(f_listings, process_today_only):
                 
                 # Financials
                 price_rent = advert.get('price')
-                charges = advert.get('charges')
                 utility_charges = advert.get('utilityCharges')
                 service_charges = advert.get('serviceCharges')
                 fee = advert.get('fee') # Provize
@@ -107,7 +106,6 @@ def extract_detail(f_listings, process_today_only):
                     'Disposition': disposition,
                     'Area (m2)': surface,
                     'Rent (CZK)': price_rent,
-                    'Charges (CZK)': charges,
                     'Utilities (CZK)': utility_charges,
                     'Services (CZK)': service_charges,
                     'Fee': fee,
