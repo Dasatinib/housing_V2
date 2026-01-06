@@ -114,12 +114,13 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     'Utilities (CZK)': utility_charges,
                     'Services (CZK)': service_charges,
                     'Fee': fee,
-                    'Available From': available_date,
+                    'Available from': available_date,
                     'Tags': tags_str,
                     'Description': description,
                     'Latitude': lat,
                     'Longitude': lng,
-                    'Source File': os.path.basename(file)
+                    'Source file': os.path.basename(file),
+                    'Date obtained': datetime.today().strftime('%y%m%d')
                 }
 
                 if res:
