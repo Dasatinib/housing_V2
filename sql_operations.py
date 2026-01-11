@@ -1,3 +1,5 @@
+### TODO the dedup sql query checks ALL data. This is too much, once running, it can check only day before (or perhaps a two or three days before if the script crashes for a day)
+
 import pandas as pd
 from sqlalchemy import create_engine, text, inspect
 import sshtunnel
