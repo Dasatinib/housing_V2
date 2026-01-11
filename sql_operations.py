@@ -37,43 +37,83 @@ def perform_and_upload(df_today,
             )
             sql_dedup_and_upload(engine, df_today)
 
-def sql_dedup_and_upload(engine, df_today):
-
-    # Dedupliaction
-    # Deduplication needs to be done on SQL side to enable direct deletion of older entries.
-    today = datetime.today().strftime('%y%m%d')
-    yesterday = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
-    
-    # Upload today
+def sql_dedup_and_upload(engine, df_today): # AI made this
+    # 1. Upload today's data first
     df_today.to_sql("properties", engine, if_exists="append", index=False)
     print(f"✅ Successfully uploaded {len(df_today)} records to 'properties' table")
+    print("Moving to deduplication (SCD Logic)...")
 
-    print("Moving to deduplication")
     inspector = inspect(engine)
     all_columns = [col['name'] for col in inspector.get_columns('properties')]
-    dedup_columns = [col for col in all_columns if col not in ['Date obtained', 'Source file']]
-    # Build the PARTITION BY clause dynamically
-    partition_cols = ', '.join([f"`{col}`" for col in dedup_columns])
-    # Deduplication query - keeps most recent entries
-    dedup_query = f"""
-    DELETE p1 FROM properties p1
-    INNER JOIN (
-        SELECT *,
-            ROW_NUMBER() OVER (
-                PARTITION BY {partition_cols}
-                ORDER BY `Date obtained` DESC
-            ) as rn
-        FROM properties
-        WHERE `Date obtained` >= CURDATE() - INTERVAL 1 DAY
-    ) p2 ON p1.`Date obtained` = p2.`Date obtained`
-        AND p1.`Source file` = p2.`Source file`
-        AND {' AND '.join([f"p1.`{col}` <=> p2.`{col}`" for col in dedup_columns])}
-    WHERE p2.rn > 1
-    """
     
+    # --- CONFIGURATION ---
+    # You MUST define which column identifies the property (e.g., 'Url', 'ListingID', 'Ref')
+    # If the price changes, the ID stays the same, but the attributes change.
+    id_column = 'URL'  # <--- REPLACE THIS with your actual unique identifier column name -> Done by URL. I'm not sure if listing_id is really unique
+    
+    # Columns to check for changes (Everything except Metadata and the ID)
+    exclude_cols = ['Date obtained', 'Source file', id_column]
+    data_columns = [col for col in all_columns if col not in exclude_cols]
+    
+    # Build dynamic comparison string: p_curr.Price <=> p_prev.Price AND ...
+    # (<=> is NULL-safe equality in MySQL)
+    comparison_logic = " AND ".join([f"p_curr.`{col}` <=> p_prev.`{col}`" for col in data_columns])
+
+    # --- THE QUERY ---
+    # Logic: Delete a row IF:
+    # 1. It has a previous record (It's not the first one)
+    # 2. Its data is IDENTICAL to the previous record
+    # 3. It is NOT the latest record (rn_desc > 1) -> This keeps the "7th" entry
+    
+    dedup_query = f"""
+    DELETE target 
+    FROM properties target
+    -- 1. Calculate Previous Date and Recency Rank for every row
+    INNER JOIN (
+        SELECT 
+            `{id_column}`,
+            `Date obtained`,
+            `Source file`,
+            -- Get the date of the record immediately preceding this one
+            LAG(`Date obtained`) OVER (
+                PARTITION BY `{id_column}` 
+                ORDER BY `Date obtained` ASC
+            ) as prev_date,
+            -- Rank by newest (1 = Latest/Today, 2 = Yesterday, etc.)
+            ROW_NUMBER() OVER (
+                PARTITION BY `{id_column}` 
+                ORDER BY `Date obtained` DESC
+            ) as rn_desc
+        FROM properties
+        -- Note: We look at the full history to ensure correct change tracking
+    ) navigation ON target.`{id_column}` = navigation.`{id_column}` 
+                 AND target.`Date obtained` = navigation.`Date obtained`
+                 AND target.`Source file` = navigation.`Source file`
+    
+    -- 2. Join to the actual Property table again to get the DATA of the previous record
+    INNER JOIN properties p_prev 
+        ON p_prev.`{id_column}` = navigation.`{id_column}` 
+        AND p_prev.`Date obtained` = navigation.prev_date
+        
+    -- 3. Alias the target as p_curr for readability in comparison
+    INNER JOIN properties p_curr 
+        ON p_curr.`{id_column}` = target.`{id_column}` 
+        AND p_curr.`Date obtained` = target.`Date obtained`
+        AND p_curr.`Source file` = target.`Source file`
+
+    WHERE 
+        -- CONDITION A: The data is exactly the same as the previous record
+        ( {comparison_logic} )
+        
+        -- CONDITION B: It is NOT the absolute latest record
+        -- (We want to keep the 7th entry even if it's same as 6th, to show it's still alive)
+        AND navigation.rn_desc > 1
+    """
+
     with engine.connect() as conn:
         result = conn.execute(text(dedup_query))
         conn.commit()
         deleted_count = result.rowcount
-    print(f"✅ Successfully uploaded {len(df_today)} records to 'properties' table")
-    print(f"🗑️ Removed {deleted_count} duplicate records (kept most recent)")
+
+    print(f"🗑️ Removed {deleted_count} redundant intermediate records.")
+    print("   (Kept: First appearance, Changes, and Latest status)")
