@@ -61,7 +61,7 @@ class NordVPNSession:
         for attempt in range(self.max_retries):
             await self.create_and_configure_session()
             proxy_ip = await self.get_ip(use_proxy=True)
-            if self.naked_ip != proxy_ip:
+            if proxy_ip and self.naked_ip != proxy_ip:
                 print(f"Proxy IP is different from naked IP. \\ Proxy IP: {proxy_ip} \\ Naked IP: {self.naked_ip} \\ That's fine, continuing process.")
                 return
             self.proxy_index = (self.proxy_index + 1) % len(self.addresses) # Rotating proxy
