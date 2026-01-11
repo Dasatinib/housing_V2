@@ -11,7 +11,7 @@ Pseudocode
 # My files
 from downloadsV2 import download_br
 from html_operations import extract_detail
-from sql_operations import upload_externally
+from sql_operations import perform_and_upload
 
 # Not my files
 import os
@@ -50,15 +50,17 @@ def main(run_download=True, run_processing=True, process_today_only=True, run_sq
     ssh_pkey = os.getenv("DB_SSH_FILE")
     db_address = os.getenv("DB_HOST")
     db_name = os.getenv("DB_NAME_MASTER")
+    db_is_local = os.getenv("DB_IS_LOCAL")
 
     if run_sql:
-        upload_externally(df_today, 
-                      ssh_host,
-                      ssh_username,
-                      ssh_pass,
-                      ssh_pkey,
-                      db_address,
-                      db_name)
+        perform_and_upload(df_today,
+                           ssh_host,
+                           ssh_username,
+                           ssh_pass,
+                           ssh_pkey,
+                           db_address,
+                           db_name,
+                           db_is_local)
 
 if __name__ == "__main__":
     main()

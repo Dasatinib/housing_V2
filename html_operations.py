@@ -121,7 +121,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     'Latitude': lat,
                     'Longitude': lng,
                     'Source file': os.path.basename(file),
-                    'Date obtained': datetime.strptime(str(file[11:17]), '%y%m%d').date()# Wonky but should work
+                    'Date obtained': datetime.strptime(os.path.basename(file)[:6], '%y%m%d').date()
                 }
 
                 if res:
