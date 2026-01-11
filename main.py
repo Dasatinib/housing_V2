@@ -20,7 +20,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-def main(run_download=True, run_processing=True, process_today_only=True):
+def main(run_download=True, run_processing=True, process_today_only=True, run_sql = True):
     
     print("Making sure folders exist")
     f_mains = os.getenv("FOLDER_MAINS")
@@ -38,7 +38,9 @@ def main(run_download=True, run_processing=True, process_today_only=True):
         asyncio.run(download_br(f_mains, f_listings)) # This downloads all htmls for the day
     
     if run_processing:
-        extract_detail(f_listings, process_today_only)
+        print(f"Extracting (today's={process_today_only}) listings information from htmls.")
+        df_today = extract_detail(f_listings, process_today_only)
+        print("Listings information from htmls extracted successfully.")
 
     ### SQL operations ###
     
@@ -49,6 +51,14 @@ def main(run_download=True, run_processing=True, process_today_only=True):
     db_address = os.getenv("DB_HOST")
     db_name = os.getenv("DB_NAME_MASTER")
 
+    if run_sql:
+        upload_externally(df_today, 
+                      ssh_host,
+                      ssh_username,
+                      ssh_pass,
+                      ssh_pkey,
+                      db_address,
+                      db_name)
 
 if __name__ == "__main__":
     main()

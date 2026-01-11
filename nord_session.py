@@ -93,6 +93,14 @@ class NordVPNSession:
                 response = await self.session.get(url, **kwargs)
                 if response.status_code == 200:
                     return response
+                elif response.status_code == 404:
+                    print(f"Error 404 recieved on {url}.")
+                    print(f"Response reason: {response.reason}")
+                    if response.text:
+                        print(f"Reason text: {response.text}")
+                    else:
+                        print("Reason text: (No additional details provided by server)")
+                    return None
                 else:
                     print(f"Request failed with status {response.status_code}. Rotating proxy and retrying ({attempt + 1}/{self.max_retries})...")
             except Exception as e:

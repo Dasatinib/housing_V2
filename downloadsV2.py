@@ -18,7 +18,6 @@ def get_page_n(content):
     total_ads = processed.get('props', {}).get('pageProps', {}).get('apolloCache', {}).get('ROOT_QUERY', {})
     total_ads = total_ads.get(list(total_ads.keys())[2], {}).get('totalCount')
     pages_n = int(total_ads/15) + (total_ads%15>0)
-    # print(pages_n)
     return pages_n
 
 async def download_br(f_mains, f_listings):
@@ -47,23 +46,26 @@ async def download_br(f_mains, f_listings):
                     page = page + 1
                     url = template_url+str(page)
                     page_raw = await nord.get(url)
-                    with open(f"{f_mains}/{datetime.today().strftime('%y%m%d')}_{page}", "wb+") as f:
-                        f.write(page_raw.content)
-                    print(f"Page {page} saved")
+                    if page_raw:
+                        with open(f"{f_mains}/{datetime.today().strftime('%y%m%d')}_{page}", "wb+") as f:
+                            f.write(page_raw.content)
+                        print(f"Page {page} saved")
             except Exception as e:
                 print(f"Error: {e}")
             finally:
                 print("Mains job complete")
 
             urls = get_listing_urls(f_mains)
+            print(f"There are {len(urls)} within f_main htmls that will be processed.")
 
             if urls:
                 try:
                     for i, url in enumerate(urls, 1):
                         page_raw = await nord.get(url)
-                        with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "wb+") as f:
-                            f.write(page_raw.content)
-                        print(f"Listing {i} saved")
+                        if page_raw:
+                            with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "wb+") as f:
+                                f.write(page_raw.content)
+                            print(f"Listing {i} saved")
                 except Exception as e:
                     print(f"Error {e}")
                 finally:

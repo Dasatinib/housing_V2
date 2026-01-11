@@ -11,6 +11,7 @@ def get_listing_urls(f_mains) -> list:
     """
     urls = set()
     files = glob.glob(os.path.join(f_mains, '*'))
+    files = [file for file in files if os.path.basename(file).startswith(f"{datetime.today().strftime('%y%m%d')}")] # These urls are used for download. I only want to download listings from today's mains.
     
     for filepath in files:
         if not os.path.isfile(filepath) or os.path.basename(filepath).startswith('.'):
@@ -120,7 +121,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     'Latitude': lat,
                     'Longitude': lng,
                     'Source file': os.path.basename(file),
-                    'Date obtained': datetime.today().strftime('%y%m%d')
+                    'Date obtained': datetime.strptime(str(file[11:17]), '%y%m%d').date()# Wonky but should work
                 }
 
                 if res:
