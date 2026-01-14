@@ -27,7 +27,7 @@ def perform_and_upload(df_today,
 
     else:
 
-        print("Initiating remote upload")
+        print("Initiating remote upload to SQL")
 
         with sshtunnel.SSHTunnelForwarder(
                 (ssh_host),
@@ -45,7 +45,30 @@ def sql_dedup_and_upload(engine, df_today): # AI made this
     print(f"✅ Successfully uploaded {len(df_today)} records to 'properties' table")
     print("Moving to deduplication (SCD Logic)...")
 
+    # --- PERFORMANCE FIX: Ensure Index Exists ---
+    # The deduplication query relies heavily on partitioning by URL and ordering by Date.
+    # Without an index, this causes a full table sort which hangs the script.
+    try:
+        with engine.connect() as conn:
+            # check if index exists (simple check via exception or show index)
+            # MySQL 5.7+ doesn't support "IF NOT EXISTS" well in create index usually, so we check first.
+            # But 'inspector' is available from earlier.
+            pass
+    except Exception:
+        pass
+
     inspector = inspect(engine)
+    existing_indices = [i['name'] for i in inspector.get_indexes('properties')]
+    if 'idx_url_date' not in existing_indices:
+        print("Creating index 'idx_url_date' on (URL, Date obtained) for performance...")
+        with engine.connect() as conn:
+            # Fix for BLOB/TEXT error: Specify key length for URL (e.g., 255 chars)
+            conn.execute(text("CREATE INDEX idx_url_date ON properties (`URL`(255), `Date obtained`)"))
+            conn.commit()
+        print("Index created.")
+    else:
+        print("Index 'idx_url_date' already exists.")
+
     all_columns = [col['name'] for col in inspector.get_columns('properties')]
     
     # --- CONFIGURATION ---
