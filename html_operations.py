@@ -100,6 +100,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                 lat = gps.get('lat') if gps else None
                 lng = gps.get('lng') if gps else None
 
+
                 if lat is not None:
                     lat = round(lat, 5)
                 if lng is not None:
@@ -151,3 +152,85 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
 
     else:
         print("No data extracted.")
+
+
+# The below is very inefficient - it should be done along with the rest of the extraction
+# START MODIFICATION: Add extract_images function
+def extract_images(f_listings, process_today_only) -> pd.DataFrame:
+    files = glob.glob(os.path.join(f_listings, '*'))
+    files = [file for file in files
+             if os.path.isfile(file)
+             and not os.path.basename(file).startswith('.')]
+    
+    if process_today_only:
+        files = [file for file in files if os.path.basename(file).startswith(f"{datetime.today().strftime('%y%m%d')}")]
+        
+    print(f"Scanning {len(files)} files for images in {f_listings}...")
+
+    data = []
+    for file in files:
+        try:
+            with open(file, 'r', encoding='utf-8') as f:
+                soup = BeautifulSoup(f, 'html.parser')
+                script_tag = soup.find("script", {"id": "__NEXT_DATA__"})
+                if not script_tag or not script_tag.string:
+                    continue
+                
+                json_data = json.loads(script_tag.string)
+                page_props = json_data.get('props', {}).get('pageProps', {})
+                advert = page_props.get('origAdvert')
+                
+                if not advert:
+                    continue
+                
+                listing_id = advert.get('id')
+                public_images = advert.get('publicImages', [])
+                cache = page_props.get('apolloCache', {})
+                
+                # Extract date from filename: br_htmls_listings_260114_138.html
+                # Split by '_' gives ['br', 'htmls', 'listings', '260114', '138.html']
+                filename_parts = os.path.basename(file).split('_')
+                date_obtained = None
+                if len(filename_parts) >= 4:
+                     try:
+                         date_obtained = datetime.strptime(filename_parts[3], '%y%m%d').date()
+                     except ValueError:
+                         pass
+                
+                for img_ref in public_images:
+                    img_obj = None
+                    if '__ref' in img_ref:
+                        img_obj = cache.get(img_ref['__ref'])
+                    else:
+                        img_obj = img_ref
+                    
+                    if not img_obj:
+                        continue
+                        
+                    url = img_obj.get('url')
+                    if not url:
+                        # Search for any key starting with 'url'
+                        for k, v in img_obj.items():
+                            if k.startswith('url'):
+                                url = v
+                                break
+                    
+                    if url:
+                        data.append({
+                            'listing_id': listing_id,
+                            'image_url': url,
+                            'Source file': os.path.basename(file),
+                            'Date obtained': date_obtained
+                        })
+
+        except Exception:
+            continue
+    
+    if data:
+        df = pd.DataFrame(data)
+        print(f"Successfully extracted {len(df)} image records.")
+        return df
+    else:
+        print("No image data extracted.")
+        return pd.DataFrame()
+# END MODIFICATION

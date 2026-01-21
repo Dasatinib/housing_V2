@@ -46,7 +46,7 @@ def sql_dedup_and_upload(engine, df_today): # AI made this
     print("Moving to deduplication (SCD Logic)...")
 
     # --- PERFORMANCE FIX: Ensure Index Exists ---
-    # The deduplication query relies heavily on partitioning by URL and ordering by Date.
+    # The deduplication query relies heavily on partitioning by ID and ordering by Date.
     # Without an index, this causes a full table sort which hangs the script.
     try:
         with engine.connect() as conn:
@@ -59,22 +59,22 @@ def sql_dedup_and_upload(engine, df_today): # AI made this
 
     inspector = inspect(engine)
     existing_indices = [i['name'] for i in inspector.get_indexes('properties')]
-    if 'idx_url_date' not in existing_indices:
-        print("Creating index 'idx_url_date' on (URL, Date obtained) for performance...")
+    if 'idx_id_date' not in existing_indices:
+        print("Creating index 'idx_id_date' on (ID, Date obtained) for performance...")
         with engine.connect() as conn:
-            # Fix for BLOB/TEXT error: Specify key length for URL (e.g., 255 chars)
-            conn.execute(text("CREATE INDEX idx_url_date ON properties (`URL`(255), `Date obtained`)"))
+            # Fix for BLOB/TEXT error: Specify key length for ID (e.g., 255 chars)
+            conn.execute(text("CREATE INDEX idx_id_date ON properties (`listing_id`(255), `Date obtained`)"))
             conn.commit()
         print("Index created.")
     else:
-        print("Index 'idx_url_date' already exists.")
+        print("Index 'idx_id_date' already exists.")
 
     all_columns = [col['name'] for col in inspector.get_columns('properties')]
     
     # --- CONFIGURATION ---
-    # You MUST define which column identifies the property (e.g., 'Url', 'ListingID', 'Ref')
+    # You MUST define which column identifies the property (e.g., 'ID', 'ListingID', 'Ref')
     # If the price changes, the ID stays the same, but the attributes change.
-    id_column = 'URL'  # <--- REPLACE THIS with your actual unique identifier column name -> Done by URL. I'm not sure if listing_id is really unique
+    id_column = 'listing_id'  # <--- REPLACE THIS with your actual unique identifier column name -> Done by ID.
     
     # Columns to check for changes (Everything except Metadata and the ID)
     exclude_cols = ['Date obtained', 'Source file', id_column]
