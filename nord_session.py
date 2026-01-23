@@ -58,6 +58,7 @@ class NordVPNSession:
         self.naked_ip = await self.get_ip(use_proxy=False)
         if not self.naked_ip:
             print("Can't verify naked IP. Aborting.")
+            raise ProxySetupError("Could not verify naked IP.")
         for attempt in range(self.max_retries):
             await self.create_and_configure_session()
             proxy_ip = await self.get_ip(use_proxy=True)

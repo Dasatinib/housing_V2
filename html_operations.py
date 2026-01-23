@@ -191,11 +191,6 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                 # Split by '_' gives ['br', 'htmls', 'listings', '260114', '138.html']
                 filename_parts = os.path.basename(file).split('_')
                 date_obtained = None
-                if len(filename_parts) >= 4:
-                     try:
-                         date_obtained = datetime.strptime(filename_parts[3], '%y%m%d').date()
-                     except ValueError:
-                         pass
                 
                 for img_ref in public_images:
                     img_obj = None
@@ -208,6 +203,7 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                         continue
                         
                     url = img_obj.get('url')
+                    filename = os.path.basename(url)
                     if not url:
                         # Search for any key starting with 'url'
                         for k, v in img_obj.items():
@@ -218,9 +214,9 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                     if url:
                         data.append({
                             'listing_id': listing_id,
-                            'image_url': url,
-                            'Source file': os.path.basename(file),
-                            'Date obtained': date_obtained
+                            'filename': filename,
+                            'filepath': f"br/images/{filename}",
+                            'url': url
                         })
 
         except Exception:

@@ -1,6 +1,6 @@
 import boto3
 import os
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
 
 
 def upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name=None):
@@ -31,6 +31,15 @@ def upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, o
     )
 
     try:
+        #Check if file already exists
+        try: 
+            s3_client.head_object(Bucket=BUCKET_NAME, Key=object_name)
+            print(f"File {object_name} already exists in bucket {BUCKET_NAME}. Skipping upload.")
+            return True
+        except ClientError:
+            # File not found, proceed with upload
+            pass
+
         print(f"Starting upload: {file_path} -> {BUCKET_NAME}/{object_name}")
         s3_client.upload_file(file_path, BUCKET_NAME, object_name)
         print(f"Upload Successful: {object_name}")

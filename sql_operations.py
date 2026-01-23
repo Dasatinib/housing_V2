@@ -5,9 +5,10 @@ from sqlalchemy import create_engine, text, inspect
 import sshtunnel
 from datetime import datetime, timedelta
 
-### For external uploads ###
+### For and internal uploads ###
 
 def perform_and_upload(df_today,
+                       df_today_images,
                        ssh_host,
                        ssh_username,
                        ssh_pass,
@@ -23,7 +24,7 @@ def perform_and_upload(df_today,
         engine = create_engine(
             f"mysql+pymysql://{ssh_username}:{ssh_pass}@{db_address}:3306/{db_name}"
         )
-        sql_dedup_and_upload(engine, df_today)
+        sql_dedup_and_upload(engine, df_today, df_today_images)
 
     else:
 
@@ -37,12 +38,14 @@ def perform_and_upload(df_today,
             engine = create_engine(
                 f"mysql+pymysql://{ssh_username}:{ssh_pass}@127.0.0.1:{tunnel.local_bind_port}/{db_name}"
             )
-            sql_dedup_and_upload(engine, df_today)
+            sql_dedup_and_upload(engine, df_today, df_today_images)
 
-def sql_dedup_and_upload(engine, df_today): # AI made this
+def sql_dedup_and_upload(engine, df_today, df_today_images): # AI made this
+
     # 1. Upload today's data first
     df_today.to_sql("properties", engine, if_exists="append", index=False)
     print(f"✅ Successfully uploaded {len(df_today)} records to 'properties' table")
+    df_today_images.to_sql("images_staging", engine, if_exists="replace", index=False)
     print("Moving to deduplication (SCD Logic)...")
 
     # --- PERFORMANCE FIX: Ensure Index Exists ---
@@ -56,6 +59,16 @@ def sql_dedup_and_upload(engine, df_today): # AI made this
             pass
     except Exception:
         pass
+    
+    ### Move images from staging to main table
+    with engine.begin() as conn:
+        move_images = text("""
+            INSERT IGNORE INTO images (listing_id, filename, filepath, url)
+            SELECT listing_id, filename, filepath, url 
+            FROM images_staging;
+        """)
+        conn.execute(move_images)
+    ###
 
     inspector = inspect(engine)
     existing_indices = [i['name'] for i in inspector.get_indexes('properties')]
@@ -142,3 +155,104 @@ def sql_dedup_and_upload(engine, df_today): # AI made this
 
     print(f"🗑️ Removed {deleted_count} redundant intermediate records.")
     print("   (Kept: First appearance, Changes, and Latest status)")
+
+
+def get_undownloaded_images(ssh_host,
+                       ssh_username,
+                       ssh_pass,
+                       ssh_pkey,
+                       db_address,
+                       db_name,
+                       db_is_local):
+
+    if db_is_local == "true":
+
+        print("Connecting locally to SQL to get undownloaded images")
+
+        engine = create_engine(
+            f"mysql+pymysql://{ssh_username}:{ssh_pass}@{db_address}:3306/{db_name}"
+        )
+        
+        # SQL QUERY GOES HERE. should return a list of links to download:
+
+        undownloaded_images_query = "SELECT id, url, filename, downloaded FROM images WHERE downloaded=0;"
+        undownloaded_images = pd.read_sql(undownloaded_images_query, engine)
+        return undownloaded_images
+
+
+    else:
+
+        print("Connecting remotely to SQL to get undownloaded images")
+
+        with sshtunnel.SSHTunnelForwarder(
+                (ssh_host),
+                ssh_username=ssh_username,
+                ssh_pkey=ssh_pkey,
+                remote_bind_address=(db_address,3306)) as tunnel:
+            engine = create_engine(
+                f"mysql+pymysql://{ssh_username}:{ssh_pass}@127.0.0.1:{tunnel.local_bind_port}/{db_name}"
+            )
+            # SQL QUERY GOES HERE. should return a list of links to download:
+
+            undownloaded_images_query = "SELECT id, url, filename, downloaded FROM images WHERE downloaded=0;"
+            undownloaded_images = pd.read_sql(undownloaded_images_query, engine)
+            return undownloaded_images
+
+
+def update_undownloaded_images(undownloaded_images,
+                       ssh_host,
+                       ssh_username,
+                       ssh_pass,
+                       ssh_pkey,
+                       db_address,
+                       db_name,
+                       db_is_local):
+
+    if db_is_local == "true":
+
+        print("Connecting locally to SQL to get undownloaded images")
+
+        engine = create_engine(
+            f"mysql+pymysql://{ssh_username}:{ssh_pass}@{db_address}:3306/{db_name}"
+        )
+        
+        # SQL QUERY GOES HERE. should return a list of links to download:
+
+        undownloaded_images=undownloaded_images[["id", "downloaded"]]
+        undownloaded_images.to_sql("images_staging", engine, if_exists="replace", index=False)
+
+        with engine.begin() as conn:
+            move_images = text("""
+                UPDATE images
+                INNER JOIN images_staging
+                    ON images.id = images_staging.id
+                SET images.downloaded = images_staging.downloaded;
+            """)
+            conn.execute(move_images)
+
+    else:
+
+        print("Connecting remotely to SQL to get undownloaded images")
+
+        with sshtunnel.SSHTunnelForwarder(
+                (ssh_host),
+                ssh_username=ssh_username,
+                ssh_pkey=ssh_pkey,
+                remote_bind_address=(db_address,3306)) as tunnel:
+            engine = create_engine(
+                f"mysql+pymysql://{ssh_username}:{ssh_pass}@127.0.0.1:{tunnel.local_bind_port}/{db_name}"
+            )
+
+            # SQL QUERY GOES HERE. should return a list of links to download:
+
+            undownloaded_images=undownloaded_images[["id", "downloaded"]]
+            undownloaded_images.to_sql("images_staging", engine, if_exists="replace", index=False)
+
+            with engine.begin() as conn:
+                move_images = text("""
+                    UPDATE images
+                    INNER JOIN images_staging
+                        ON images.id = images_staging.id
+                    SET images.downloaded = images_staging.downloaded;
+                """)
+                conn.execute(move_images)
