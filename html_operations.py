@@ -105,7 +105,8 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     lat = round(lat, 5)
                 if lng is not None:
                     lng = round(lng, 5)
-
+                
+                filename = os.path.basename(file)
                 res = {
                     'listing_id': listing_id,
                     'URL': url,
@@ -121,7 +122,8 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     'Description': description,
                     'Latitude': lat,
                     'Longitude': lng,
-                    'Source file': os.path.basename(file),
+                    'Source file': filename,
+                    'bb_object_name': f"br/htmls/listings/{filename.split('_')[0]}/{filename}.html",
                     'Date obtained': datetime.strptime(os.path.basename(file)[:6], '%y%m%d').date()
                 }
 

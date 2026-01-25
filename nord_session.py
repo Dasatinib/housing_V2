@@ -2,6 +2,7 @@ from requests_html import AsyncHTMLSession
 from requests.exceptions import RequestException
 import asyncio
 import os
+from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -112,3 +113,25 @@ class NordVPNSession:
             await self.create_and_configure_session()
             
         raise Exception(f"Failed to fetch {url} after {self.max_retries} attempts.")
+
+def with_nord_session(func):
+    """
+    Async decorator that initializes a NordVPNSession, passes it
+    to the decorated function as the 'nord' argument, and closes it afterwards.
+    """
+    @wraps(func)
+    async def wrapper(*args,**kwargs):
+        print("Wrapper initializing NordSession...")
+        nord = NordVPNSession()
+        await nord.initialize()
+
+        try:
+            # Variable download function injection
+            return await func(*args,**kwargs, nord=nord)
+        except Exception as e:
+            print(f"Wrapper: Caught an error in {func.__name__}: {e}")
+            pass
+        finally:
+            print("Wrapper closing NordSession...")
+            await nord.close()
+    return wrapper
