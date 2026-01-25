@@ -47,6 +47,6 @@ def upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, o
     except FileNotFoundError:
         print(f"The file {file_path} was not found for Backblaze upload")
     except NoCredentialsError:
-        print("Backblaze redentials not available")
+        print("Backblaze credentials not available")
     except Exception as e:
         print(f"An error with Backblaze occurred: {e}")

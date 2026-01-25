@@ -24,10 +24,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def main(run_download=False, 
-         run_processing=True, 
+         run_processing=False, 
          process_today_only=False, 
-         run_sql=True, 
-         run_backblaze=True,
+         run_sql=False,
+         run_backblaze=False,
          download_images=True):
     
     print("Making sure folders exist")
@@ -56,7 +56,6 @@ def main(run_download=False,
         print("Image extraction completed")
 
     ### SQL operations ###
-    print("Initiating sql upload")
     ssh_host = os.getenv("DB_SSH_HOST")
     ssh_username = os.getenv("DB_USR")
     ssh_pass = os.getenv("DB_PASS")
@@ -66,6 +65,7 @@ def main(run_download=False,
     db_is_local = os.getenv("DB_IS_LOCAL")
 
     if run_sql:
+        print("Initiating sql upload")
         perform_and_upload(df_today,
                            df_today_images,
                            ssh_host,
@@ -75,7 +75,7 @@ def main(run_download=False,
                            db_address,
                            db_name,
                            db_is_local)
-    print("sql upload completed")
+        print("sql upload completed")
 
     ### Backblaze operations ###
     
@@ -89,7 +89,7 @@ def main(run_download=False,
         daily_files_mains = glob.glob(os.path.join(f_mains, '*'))
         daily_files_mains = [file for file in daily_files_mains
                  if os.path.isfile(file)
-                 and not os.path.basename(file).startswith('.')]
+   and not os.path.basename(file).startswith('.')]
         #daily_files_mains = [file for file in daily_files_mains if os.path.basename(file).startswith(f"{datetime.today().strftime('%y%m%d')}")]
            
         for file in daily_files_mains:
@@ -108,7 +108,11 @@ def main(run_download=False,
                 os.remove(file)
                 print(f"Uploaded and deleted file {file}.")
     
+    # Image operations
+
     if download_images:
+        
+        ## Get a table of images, filtered for download == 0
         undownloaded_images = get_undownloaded_images(ssh_host,
                        ssh_username,
                        ssh_pass,
@@ -116,18 +120,33 @@ def main(run_download=False,
                        db_address,
                        db_name,
                        db_is_local)
+        
+        # FOR TESTING
+        # undownloaded_images = undownloaded_images[:10]
+        ###
 
+        ## Download those images
         asyncio.run(download_br_images(undownloaded_images, f_images))
 
+        ## Upload those images to B2
         for index in undownloaded_images.index:
             if undownloaded_images.at[index,"downloaded"]==1:
+                listing_id=undownloaded_images.at[index,"listing_id"]
                 filename=undownloaded_images.at[index,"filename"]
-                if upload_file(f"{f_images}/{filename}", ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name=f"br/images/{filename}"):
+                object_name=undownloaded_images.at[index,"object_name"]
+                file_path = f"{f_images}/{listing_id}-{filename}"
+                
+                if not os.path.exists(file_path):
+                    print(f"File {file_path} not found, skipping upload.")
+                    continue
+
+                if upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name):
                     undownloaded_images.at[index,"downloaded"] = 3
-                    os.remove(f"{f_images}/{filename}")
+                    os.remove(file_path)
             else:
                 pass
 
+        ## Update sql with image download statuses
         update_undownloaded_images(undownloaded_images,
                        ssh_host,
                        ssh_username,

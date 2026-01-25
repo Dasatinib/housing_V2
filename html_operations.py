@@ -215,7 +215,7 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                         data.append({
                             'listing_id': listing_id,
                             'filename': filename,
-                            'filepath': f"br/images/{filename}",
+                            'object_name': f"br/images/{listing_id}/{filename}",
                             'url': url
                         })
 

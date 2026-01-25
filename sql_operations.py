@@ -63,8 +63,8 @@ def sql_dedup_and_upload(engine, df_today, df_today_images): # AI made this
     ### Move images from staging to main table
     with engine.begin() as conn:
         move_images = text("""
-            INSERT IGNORE INTO images (listing_id, filename, filepath, url)
-            SELECT listing_id, filename, filepath, url 
+            INSERT IGNORE INTO images (listing_id, filename, object_name, url)
+            SELECT listing_id, filename, object_name, url 
             FROM images_staging;
         """)
         conn.execute(move_images)
@@ -175,7 +175,7 @@ def get_undownloaded_images(ssh_host,
         
         # SQL QUERY GOES HERE. should return a list of links to download:
 
-        undownloaded_images_query = "SELECT id, url, filename, downloaded FROM images WHERE downloaded=0;"
+        undownloaded_images_query = "SELECT id, url, filename, listing_id, downloaded, object_name FROM images WHERE downloaded=0;"
         undownloaded_images = pd.read_sql(undownloaded_images_query, engine)
         return undownloaded_images
 
@@ -194,7 +194,7 @@ def get_undownloaded_images(ssh_host,
             )
             # SQL QUERY GOES HERE. should return a list of links to download:
 
-            undownloaded_images_query = "SELECT id, url, filename, downloaded FROM images WHERE downloaded=0;"
+            undownloaded_images_query = "SELECT id, url, filename, listing_id, downloaded, object_name FROM images WHERE downloaded=0;"
             undownloaded_images = pd.read_sql(undownloaded_images_query, engine)
             return undownloaded_images
 
@@ -210,7 +210,7 @@ def update_undownloaded_images(undownloaded_images,
 
     if db_is_local == "true":
 
-        print("Connecting locally to SQL to get undownloaded images")
+        print("Connecting locally to SQL to update undownloaded images")
 
         engine = create_engine(
             f"mysql+pymysql://{ssh_username}:{ssh_pass}@{db_address}:3306/{db_name}"
@@ -232,7 +232,7 @@ def update_undownloaded_images(undownloaded_images,
 
     else:
 
-        print("Connecting remotely to SQL to get undownloaded images")
+        print("Connecting remotely to SQL to update undownloaded images")
 
         with sshtunnel.SSHTunnelForwarder(
                 (ssh_host),

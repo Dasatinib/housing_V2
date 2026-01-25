@@ -94,14 +94,16 @@ async def download_br_images(undownloaded_images, f_images):
         for index in undownloaded_images.index:
             url=undownloaded_images.at[index,"url"]
             filename=undownloaded_images.at[index,"filename"]
+            listing_id=undownloaded_images.at[index,"listing_id"]
             if url:
                 try:
                     image = await nord.get(url)
                     if image:
-                        with open(f"{f_images}/{filename}", "wb+") as f:
+                        with open(f"{f_images}/{listing_id}-{filename}", "wb+") as f:
                             f.write(image.content)
+                            # Mark as locally downloaded in df (1)
                             undownloaded_images.at[index, "downloaded"] = 1
-                        print(f"Image {filename} saved")
+                        print(f"Image {listing_id}-{filename} saved")
                 except Exception as e:
                     print(f"Error downloading {url}: {e}")
         print("Images download job complete")
