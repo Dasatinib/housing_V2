@@ -186,6 +186,10 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                     continue
                 
                 listing_id = advert.get('id')
+                try:
+                    folder_group = f"{str(listing_id)[:3]}/"
+                except:
+                    folder_group=""
                 public_images = advert.get('publicImages', [])
                 cache = page_props.get('apolloCache', {})
                 
@@ -205,7 +209,6 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                         continue
                         
                     url = img_obj.get('url')
-                    filename = os.path.basename(url)
                     if not url:
                         # Search for any key starting with 'url'
                         for k, v in img_obj.items():
@@ -214,10 +217,11 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                                 break
                     
                     if url:
+                        filename = os.path.basename(url)
                         data.append({
                             'listing_id': listing_id,
                             'filename': filename,
-                            'object_name': f"br/images/{listing_id}/{filename}",
+                            'object_name': f"br/images/{folder_group}{listing_id}/{filename}",
                             'url': url
                         })
 
