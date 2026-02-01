@@ -107,6 +107,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     lng = round(lng, 5)
                 
                 filename = os.path.basename(file)
+                filename_date = filename.split('_')[0]
                 res = {
                     'listing_id': listing_id,
                     'URL': url,
@@ -123,7 +124,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                     'Latitude': lat,
                     'Longitude': lng,
                     'Source file': filename,
-                    'bb_object_name': f"br/htmls/listings/{filename.split('_')[0]}/{filename}.html",
+                    'bb_object_name': f"br/htmls/listings/{filename_date}/{listing_id}.html",
                     'Date obtained': datetime.strptime(os.path.basename(file)[:6], '%y%m%d').date()
                 }
 
@@ -132,7 +133,7 @@ def extract_detail(f_listings, process_today_only) -> pd.DataFrame:
                 else:
                     print("No valid listing details found.")
                     continue
-
+            
         except Exception as e:
             # Fail silently for individual file errors to keep processing others
             # print(f"Error parsing {file}: {e}")

@@ -12,14 +12,27 @@ This repository contains updated but not yet deployed code.
 Improvements include:
 - Full listing data retention.
 - Overall improved code scalability and modularity.
+- Listing image storage
 
 TBD before deployment:
-- Listing image storage
-- LLM processing of rental description
-- Updated frontend
+- LLM processing of rental description for price and description
+- Updat frontend
 
 TBD long-term
-- Include noise data
+Priority A
+- Merge listings according to buildings and flats (eg. same two listings from 2 different sites, two listings that appear for the same flat from a year apart)
+- Remove listings that don't have exact address
+- Add SR
+Priority B
 - Easy to access statistics
+- Include noise map data
+Priority C
 - Notifications for newly available listings
 - AI-enhanced search for housing
+
+Other ideas
+- Make a price/location guessing game
+
+
+Known bugs
+- If a listing has been removed when downloaded it can break the html logic. See "Removed listings" in "bug_examples"

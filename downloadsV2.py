@@ -42,8 +42,8 @@ async def download_br(f_mains, f_listings, nord=None):
     if page_n:
         try:
             for page in range(
-                    #1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
-                    page_n
+                    1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
+                    #page_n
                     ):
                 page = page + 1
                 url = template_url+str(page)

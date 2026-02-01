@@ -88,15 +88,12 @@ def main(run_download=True,
                 os.remove(file)
                 print(f"Uploaded and deleted file {file}.html.")
 
-        daily_files_listings = glob.glob(os.path.join(f_listings, '*'))
-        daily_files_listings = [file for file in daily_files_listings
-                 if os.path.isfile(file)
-                 and not os.path.basename(file).startswith('.')]
 
-        for file in daily_files_listings:
+        for index, listing in df_today.iterrows():
+            file = f"listings/{listing['Source file']}"
+            file_date=file.split('_')[0]
             # Extract date from filename (assuming YYMMDD_suffix format)
-            file_date = os.path.basename(file).split('_')[0]
-            if upload_file(file, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name=f"br/htmls/listings/{file_date}/{os.path.basename(file)}.html"):
+            if upload_file(file, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name=listing['bb_object_name']):
                 os.remove(file)
                 print(f"Uploaded and deleted file {file}.html.")
     
