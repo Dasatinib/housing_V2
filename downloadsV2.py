@@ -31,19 +31,19 @@ async def download_br(f_mains, f_listings, nord=None):
         first_url = "https://www.bezrealitky.cz/vyhledat?offerType=PRONAJEM&estateType=BYT&regionOsmIds=R51684&osm_value=%C4%8Cesko&location=exact&currency=CZK&page=1" # Replace with your target
         template_url = "https://www.bezrealitky.cz/vyhledat?offerType=PRONAJEM&estateType=BYT&regionOsmIds=R51684&osm_value=%C4%8Cesko&location=exact&currency=CZK&page="
         print(f"Getting page no. \n{first_url}")
-        
+
         first_raw = await nord.get(first_url)
         page_n = get_page_n(first_raw)
     except Exception as e:
         print(f"Error: {e}")
     finally:
         print(f"Number of pages to get: {page_n}")
-    
+
     if page_n:
         try:
             for page in range(
-                    1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
-                    #page_n
+                    # 1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
+                    page_n
                     ):
                 page = page + 1
                 url = template_url+str(page)
@@ -75,7 +75,7 @@ async def download_br(f_mains, f_listings, nord=None):
                             print(f"Error processing HTML for listing {i}: {e}. Saving raw content.")
                             with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "wb+") as f:
                                 f.write(page_raw.content)
-                        
+
                         print(f"Listing {i} saved")
             except Exception as e:
                 print(f"Error {e}")

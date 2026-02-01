@@ -23,13 +23,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
-def main(run_download=True, 
-         run_processing=True, 
-         process_today_only=True, 
+def main(run_download=True,
+         run_processing=True,
+         process_today_only=True,
          run_sql=True,
          run_backblaze=True,
          download_images=True):
-    
+
     print("Making sure folders exist")
     f_mains = os.getenv("FOLDER_MAINS")
     f_listings = os.getenv("FOLDER_LISTINGS")
@@ -43,10 +43,10 @@ def main(run_download=True,
     Path(f_listings).mkdir(parents=True, exist_ok=True)
     Path(f_images).mkdir(parents=True, exist_ok=True)
     print("Folders exist")
-    
+
     if run_download:
         asyncio.run(download_br(f_mains, f_listings)) # This downloads all htmls for the day
-    
+
     df_today = None
     df_today_images = None
     if run_processing:
@@ -67,20 +67,22 @@ def main(run_download=True,
             print("Skipping SQL upload: No data available (run_processing might be False or failed).")
 
     ### Backblaze operations ###
-    
+
     ENDPOINT_URL = os.getenv("B2_ENDPOINT_URL")
     KEY_ID = os.getenv("B2_KEY_ID")
     APPLICATION_KEY = os.getenv("B2_APPLICATION_KEY")
     BUCKET_NAME = os.getenv("B2_BUCKET_NAME")
 
+    DB_IS_LOCAL = os.getenv("DB_IS_LOCAL")
+
     if run_backblaze:
-        
+
         daily_files_mains = glob.glob(os.path.join(f_mains, '*'))
         daily_files_mains = [file for file in daily_files_mains
                  if os.path.isfile(file)
    and not os.path.basename(file).startswith('.')]
         #daily_files_mains = [file for file in daily_files_mains if os.path.basename(file).startswith(f"{datetime.today().strftime('%y%m%d')}")]
-           
+
         for file in daily_files_mains:
             # Extract date from filename (assuming YYMMDD_suffix format)
             file_date = os.path.basename(file).split('_')[0]
@@ -88,22 +90,24 @@ def main(run_download=True,
                 os.remove(file)
                 print(f"Uploaded and deleted file {file}.html.")
 
-
         for index, listing in df_today.iterrows():
-            file = f"listings/{listing['Source file']}"
+            if DB_IS_LOCAL=="true":
+                file = f"./housing_V2/listings/{listing['Source file']}"
+            else:
+                file = f"listings/{listing['Source file']}"
             file_date=file.split('_')[0]
             # Extract date from filename (assuming YYMMDD_suffix format)
             if upload_file(file, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, object_name=listing['bb_object_name']):
                 os.remove(file)
                 print(f"Uploaded and deleted file {file}.html.")
-    
+
     # Image operations
 
     if download_images:
-        
+
         ## Get a table of images, filtered for download == 0
         undownloaded_images = get_undownloaded_images()
-        
+
         # FOR TESTING
         # undownloaded_images = undownloaded_images[:10]
         ###
@@ -118,7 +122,7 @@ def main(run_download=True,
                 filename=undownloaded_images.at[index,"filename"]
                 object_name=undownloaded_images.at[index,"object_name"]
                 file_path = f"{f_images}/{listing_id}-{filename}"
-                
+
                 if not os.path.exists(file_path):
                     print(f"File {file_path} not found, skipping upload.")
                     continue
@@ -131,9 +135,9 @@ def main(run_download=True,
 
         ## Update sql with image download statuses
         update_undownloaded_images(undownloaded_images)
-        
 
-        
+
+
 
 if __name__ == "__main__":
     main()
