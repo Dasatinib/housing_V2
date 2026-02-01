@@ -5,6 +5,95 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 
+def trim_html(soup: BeautifulSoup) -> BeautifulSoup:
+    """
+    Removes logo, menu, similar listings, and other unnecessary sections from the BeautifulSoup object to reduce file size.
+    """
+    # Remove Header and Footer
+    for tag in soup.select("header, footer"):
+        tag.decompose()
+        
+    # Remove Logo (redundant if header is removed, but kept for safety)
+    for logo in soup.select(".Header_headerLogo__4edC_, .Footer_footerLogo__mHj_P"):
+        logo.decompose()
+        
+    # Remove Menu (redundant if header is removed, but kept for safety)
+    for nav in soup.find_all("nav"):
+        nav.decompose()
+        
+    # Remove Similar Listings
+    for h2 in soup.find_all("h2"):
+        if "Podobn" in h2.get_text():
+            section = h2.find_parent("section")
+            if section:
+                section.decompose()
+
+    # Remove "V okolí nemovitosti najdete" (Neighborhood)
+    # It seems to be in a section with id="mapa" based on the grep output
+    neighborhood_section = soup.find("section", {"id": "mapa"})
+    if neighborhood_section:
+        neighborhood_section.decompose()
+        
+    # Remove "Rádi vám poradíme" (Contact Box)
+    # Based on grep, it seems to be inside a div with class starting with ContactBox
+    for contact_box in soup.select("div[class*='ContactBox']"):
+        # The grep output showed it inside Footer_footerSideContent, 
+        # but if we removed footer, we might have got it. 
+        # However, checking if it exists elsewhere or if the footer removal missed it.
+        # It's safer to target the specific class.
+        contact_box.decompose()
+
+    # Remove Promotional Cards
+    for promo in soup.select("div[class*='PromoCard']"):
+        promo.decompose()
+
+    # Remove PWA/Apple icons and splash screens
+    for link in soup.select("link[rel*='apple-touch-']"):
+        link.decompose()
+        
+    # Remove Cookie/Consent banners if any
+    for toast in soup.select(".toast-container"):
+        toast.decompose()
+
+    # Remove SVG icons (saves space, data is in text)
+    for tag in soup.find_all("svg"):
+        tag.decompose()
+        
+    # Remove noscript tags (usually tracking)
+    for tag in soup.find_all("noscript"):
+        tag.decompose()
+        
+    # Remove style tags (CSS not needed for data parsing)
+    for tag in soup.find_all("style"):
+        tag.decompose()
+        
+    # Remove all script tags EXCEPT __NEXT_DATA__
+    for script in soup.find_all("script"):
+        if script.get("id") != "__NEXT_DATA__":
+            script.decompose()
+
+    # Remove all link tags (stylesheets, preloads, icons)
+    for link in soup.find_all("link"):
+        link.decompose()
+
+    # Remove all style tags (inline CSS)
+    for style in soup.find_all("style"):
+        style.decompose()
+
+    # Remove style attributes from ALL tags (removes inline CSS and large Base64 images)
+    for tag in soup.find_all(True):
+        if tag.has_attr("style"):
+            del tag["style"]
+
+    # Remove srcset/imagesrcset from images
+    for img in soup.find_all("img"):
+        if img.has_attr("srcset"):
+            del img["srcset"]
+        if img.has_attr("imagesrcset"):
+            del img["imagesrcset"]
+
+    return soup
+
 def get_listing_urls(f_mains) -> list:
     """
     Extracts all unique listing URLs from the HTML files in the specified directory.

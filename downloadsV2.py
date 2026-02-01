@@ -2,7 +2,7 @@
 
 import asyncio
 from nord_session import with_nord_session
-from html_operations import get_listing_urls
+from html_operations import get_listing_urls, trim_html
 # from bezrealitky import get_page_n
 from pathlib import Path
 from datetime import datetime
@@ -65,8 +65,17 @@ async def download_br(f_mains, f_listings, nord=None):
                 for i, url in enumerate(urls, 1):
                     page_raw = await nord.get(url)
                     if page_raw:
-                        with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "wb+") as f:
-                            f.write(page_raw.content)
+                        try:
+                            soup = BeautifulSoup(page_raw.content, "html.parser")
+                            soup = trim_html(soup)
+
+                            with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "w", encoding="utf-8") as f:
+                                f.write(str(soup))
+                        except Exception as e:
+                            print(f"Error processing HTML for listing {i}: {e}. Saving raw content.")
+                            with open(f"{f_listings}/{datetime.today().strftime('%y%m%d')}_{i}", "wb+") as f:
+                                f.write(page_raw.content)
+                        
                         print(f"Listing {i} saved")
             except Exception as e:
                 print(f"Error {e}")
