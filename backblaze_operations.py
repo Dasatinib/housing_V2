@@ -30,6 +30,14 @@ def upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, o
         aws_secret_access_key=APPLICATION_KEY
     )
 
+    # Determine content type
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(file_path)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+    
+    extra_args = {'ContentType': content_type}
+
     try:
         #Check if file already exists
         try: 
@@ -40,8 +48,8 @@ def upload_file(file_path, ENDPOINT_URL, KEY_ID, APPLICATION_KEY, BUCKET_NAME, o
             # File not found, proceed with upload
             pass
 
-        print(f"Starting upload: {file_path} -> {BUCKET_NAME}/{object_name}")
-        s3_client.upload_file(file_path, BUCKET_NAME, object_name)
+        print(f"Starting upload: {file_path} -> {BUCKET_NAME}/{object_name} ({content_type})")
+        s3_client.upload_file(file_path, BUCKET_NAME, object_name, ExtraArgs=extra_args)
         print(f"Upload Successful: {object_name}")
         return True
     except FileNotFoundError:
