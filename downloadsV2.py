@@ -9,6 +9,8 @@ from datetime import datetime
 import os
 import json
 from bs4 import BeautifulSoup
+from PIL import Image
+import io
 
 def get_page_n(content):
     soup = BeautifulSoup(content.content,"html.parser") #! Need to add content.html.html to extract directly from a request.
@@ -42,8 +44,8 @@ async def download_br(f_mains, f_listings, nord=None):
     if page_n:
         try:
             for page in range(
-                    # 1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
-                    page_n
+                    1 # FOR TESTING if I want to run only 1 page. Otherwise use below.
+                    # page_n
                     ):
                 page = page + 1
                 url = template_url+str(page)
@@ -82,6 +84,17 @@ async def download_br(f_mains, f_listings, nord=None):
             finally:
                 print("Listings job complete")
 
+def compress_and_save_webp(image_bytes, target_path):
+    img = Image.open(io.BytesIO(image_bytes))
+
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    # Save as WebP
+    # quality=80 is usually excellent for WebP photos
+    # method=6 tells it to take its time to compress as much as possible
+    img.save(target_path, "WEBP", quality=70, method=4) # SET THE TARGET FORMAT OUTPUT (PLACE 2/2)
+
 @with_nord_session
 async def download_br_images(undownloaded_images, f_images, nord=None):
 
@@ -92,11 +105,11 @@ async def download_br_images(undownloaded_images, f_images, nord=None):
         if url:
             try:
                 image = await nord.get(url)
-                if image:
-                    with open(f"{f_images}/{listing_id}-{filename}", "wb+") as f:
-                        f.write(image.content)
-                        # Mark as locally downloaded in df (1)
-                        undownloaded_images.at[index, "downloaded"] = 1
+                if image and image.content:
+                    save_path = f"{f_images}/{listing_id}-{filename}"
+                    await asyncio.to_thread(compress_and_save_webp, image.content, save_path)
+                    # Mark as locally downloaded in df (1)
+                    undownloaded_images.at[index, "downloaded"] = 1
                     print(f"Image {listing_id}-{filename} saved")
                 else:
                     # Mark error'd downloads as 9 in sql

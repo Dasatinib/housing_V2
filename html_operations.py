@@ -307,7 +307,11 @@ def extract_images(f_listings, process_today_only) -> pd.DataFrame:
                                 break
                     
                     if url:
+                        # print(f"DEBUG: URL = {url}")
                         filename = os.path.basename(url)
+                        # print(f"DEBUG: filename = {filename}, type = {type(filename)}")
+                        filename = f"{os.path.splitext(filename)[0]}.webp" # SET IMAGE EXTENSION HERE (1/2 PLACES)
+                        # print(f"DEBUG: filename second = {filename}, type = {type(filename)}")
                         data.append({
                             'listing_id': listing_id,
                             'filename': filename,
